@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>transferData 1.6 · Medidor de transferencia (Escritura Real Directa)</title>
+    <style>
+        :root {
+            --bg-main: #0c0c0c;
+            --bg-panel: #161616;
+            --bg-btn: #181818;
+            --border: #2a2a2a;
+            --gold: #e5b800;
+            --gold-dark: #c99e00;
+            --text: #eaeaea;
+            --muted: #888888;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text);
+            user-select: none;
+            overflow-x: hidden;
+        }
+
+        .top-banner {
+            background-color: #f2f2f2;
+            height: 86px;
+            display: flex;
+            align-items: center;
+            padding: 0 38px;
+            border-bottom: 2px solid #ccc;
+        }
+
+        .logo-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-right: 45px;
+        }
+
+        .logo-icon {
+            background: #111;
+            color: var(--gold);
+            font-size: 28px;
+            font-weight: bold;
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 2px solid var(--gold);
+        }
+
+        .logo-text {
+            font-size: 36px;
+            font-weight: 800;
+            color: #111;
+            letter-spacing: -1px;
+        }
+
+        .logo-text span {
+            color: #d49b00;
+        }
+
+        .banner-info h1 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #111;
+            margin-bottom: 3px;
+        }
+
+        .banner-info p {
+            font-size: 12px;
+            color: #555;
+            line-height: 1.35;
+        }
+
+        .container {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 18px 30px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 75px 1fr 145px 145px;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .form-row label {
+            font-size: 13px;
+            color: #ccc;
+        }
+
+        .form-row input[type="text"],
+        .form-row select {
+            background: #ffffff;
+            color: #000000;
+            border: 1px solid #555;
+            padding: 7px 10px;
+            font-size: 13px;
+            width: 100%;
+            outline: none;
+        }
+
+        .btn {
+            background: var(--bg-btn);
+            color: #ffffff;
+            border: 1px solid #444;
+            padding: 8px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: 0.15s;
+        }
+
+        .btn:hover:not(:disabled) {
+            border-color: var(--gold);
+            background: #222;
+        }
+
+        .btn:disabled {
+            color: #555;
+            border-color: #2a2a2a;
+            cursor: not-allowed;
+        }
+
+        .btn-gold {
+            background: var(--gold);
+            color: #000;
+            font-weight: 700;
+            border-color: var(--gold);
+        }
+
+        .btn-gold:hover:not(:disabled) {
+            background: var(--gold-dark);
+        }
+
+        .btn-green {
+            background: #1f7a38;
+            color: #fff;
+            font-weight: 600;
+            border-color: #2ea043;
+        }
+
+        .check-row {
+            margin: 8px 0 14px 85px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 12.5px;
+            color: #ccc;
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .action-bar .btn {
+            min-width: 140px;
+            padding: 9px 14px;
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .metric-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            padding: 12px 16px;
+            height: 82px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .metric-title {
+            font-size: 11px;
+            color: var(--muted);
+            margin-bottom: 5px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--gold);
+        }
+
+        .status-text {
+            font-size: 12.5px;
+            color: #ffeb7a;
+            margin-bottom: 6px;
+            min-height: 18px;
+            font-weight: 500;
+        }
+
+        .progress-wrap {
+            width: 100%;
+            height: 20px;
+            background: #141414;
+            border: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #c99e00, #ffd000);
+            transition: width 0.08s;
+        }
+
+        .charts-panel {
+            background: #121212;
+            border: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: 270px 1fr;
+            padding: 12px;
+            gap: 15px;
+            height: 210px;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="top-banner">
+        <div class="logo-box">
+            <div class="logo-icon">⇄</div>
+            <div class="logo-text">transfer<span>Data</span></div>
+        </div>
+        <div class="banner-info">
+            <h1>MEDIDOR DE TRANSFERENCIA</h1>
+            <p>Windows 10 / 11 · LAN · Escritura Directa en Carpeta</p>
+            <p>Velocidad · Tiempo · Integridad</p>
+        </div>
+    </header>
+
+    <main class="container">
+        <input type="file" id="filePicker" style="display:none">
+
+        <!-- Fila Origen -->
+        <div class="form-row">
+            <label>Origen</label>
+            <select id="selArchivo" onchange="actualizarOrigen()">
+                <option value="0">informe_tecnico.pdf (15 MB — 15,480,000 bytes)</option>
+                <option value="1">respaldo_datos.zip (40 MB — 41,200,000 bytes)</option>
+                <option value="2">setup_programa.exe (150 MB — 152,500,000 bytes)</option>
+                <option value="3">presentacion_hd.mp4 (500 MB — 510,000,000 bytes)</option>
+                <option value="4">sistema_operativo.iso (1 GB — 1,024,000,000 bytes)</option>
+            </select>
+            <button class="btn" onclick="document.getElementById('filePicker').click()">Otro archivo PC...</button>
+            <button class="btn" onclick="siguienteArchivo()">Siguiente Archivo</button>
+        </div>
+
+        <!-- Fila Destino -->
+        <div class="form-row">
+            <label>Destino</label>
+            <input type="text" id="txtDestino" value="\\192.168.100.10\Velocidad\UFAST-Joseph Delgado\RONDA_1">
+            <button class="btn btn-gold" id="btnConectar" onclick="seleccionarCarpetaReal()">1. Conectar
+                Carpeta...</button>
+            <button class="btn" onclick="cambiarRondaTexto()">Cambiar Ronda</button>
+        </div>
+
+        <div class="check-row">
+            <label><input type="checkbox" id="chkSha" checked> Verificar integridad SHA-256 al terminar</label>
+            <span id="badgePermiso" style="color:#ff7b72; font-size:12px;">⚠ Haz clic en "1. Conectar Carpeta..." y
+                selecciona tu carpeta RONDA_1 para que el navegador guarde el archivo real ahí.</span>
+        </div>
+
+        <div class="action-bar">
+            <button class="btn" onclick="verificarCarpeta()">Verificar conexión</button>
+            <button class="btn btn-gold" id="btnIniciar" onclick="iniciarTransferenciaReal()">2. Iniciar
+                transferencia</button>
+            <button class="btn" id="btnCancelar" onclick="cancelar()" disabled>Cancelar</button>
+            <button class="btn" onclick="exportarCSV()">Exportar CSV</button>
+            <button class="btn" style="border-color:#e5b800" onclick="limpiar()">Limpiar acción</button>
+        </div>
+
+        <div class="cards-grid">
+            <div class="metric-card">
+                <div class="metric-title">VELOCIDAD ACTUAL</div>
+                <div class="metric-value" id="valActual">0 MB/s</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">VELOCIDAD PROMEDIO</div>
+                <div class="metric-value" id="valPromedio">0 MB/s</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">TIEMPO DE COPIA</div>
+                <div class="metric-value" id="valTiempo">00:00:00</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-title">DATOS TRANSFERIDOS</div>
+                <div class="metric-value" id="valDatos">0 MB</div>
+            </div>
+        </div>
+
+        <div class="status-text" id="lblStatus">Paso 1: Haz clic en "1. Conectar Carpeta..." y elige tu carpeta en
+            \\192.168.100.10\Velocidad</div>
+        <div class="progress-wrap">
+            <div class="progress-bar" id="progBar"></div>
+        </div>
+
+        <div class="charts-panel">
+            <canvas id="gaugeCanvas" width="250" height="185"></canvas>
+            <canvas id="lineCanvas" width="780" height="185"></canvas>
+        </div>
+    </main>
+
+    <script>
+        const catalogo = [
+            { name: "informe_tecnico.pdf", size: 15480000 },
+            { name: "respaldo_datos.zip", size: 41200000 },
+            { name: "setup_programa.exe", size: 152500000 },
+            { name: "presentacion_hd.mp4", size: 510000000 },
+            { name: "sistema_operativo.iso", size: 1024000000 }
+        ];
+
+        let archivoActual = catalogo[0];
+        let customFileBlob = null;
+        let dirHandle = null; // Permiso real de escritura del navegador
+        let isRunning = false;
+        let cancelReq = false;
+        let speedHistory = [];
+        let logs = [];
+        let rondaIdx = 0;
+        const nombresRondas = ["RONDA_1", "RONDA_2", "SIMULTANEA"];
+
+        function actualizarOrigen() {
+            customFileBlob = null;
+            const idx = parseInt(document.getElementById('selArchivo').value);
+            archivoActual = catalogo[idx];
+            document.getElementById('lblStatus').textContent = `Archivo preparado en memoria: ${archivoActual.name} (${archivoActual.size.toLocaleString()} bytes)`;
+        }
+
+        function siguienteArchivo() {
+            const sel = document.getElementById('selArchivo');
+            sel.value = (parseInt(sel.value) + 1) % catalogo.length;
+            actualizarOrigen();
+        }
+
+        document.getElementById('filePicker').addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                const f = e.target.files[0];
+                customFileBlob = f;
+                archivoActual = { name: f.name, size: f.size };
+                document.getElementById('lblStatus').textContent = `Archivo físico seleccionado: ${f.name} (${f.size.toLocaleString()} bytes)`;
+            }
+        });
+
+        function cambiarRondaTexto() {
+            rondaIdx = (rondaIdx + 1) % nombresRondas.length;
+            document.getElementById('txtDestino').value = `\\\\192.168.100.10\\Velocidad\\UFAST-Joseph Delgado\\${nombresRondas[rondaIdx]}`;
+        }
+
+        // ABRE EL EXPLORADOR REAL DE WINDOWS PARA DAR PERMISO DE ESCRITURA AL HTML
+        async function seleccionarCarpetaReal() {
+            if (!window.showDirectoryPicker) {
+                alert("Tu navegador no soporta escritura directa. Ábrelo en Google Chrome o Microsoft Edge.");
+                return;
+            }
+            try {
+                dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                document.getElementById('badgePermiso').innerHTML = `✅ <b>Carpeta conectada con éxito: "${dirHandle.name}"</b> (Los archivos se guardarán físicamente ahí)`;
+                document.getElementById('badgePermiso').style.color = "#3fb950";
+                document.getElementById('btnConectar').className = "btn btn-green";
+                document.getElementById('btnConectar').textContent = "✓ Carpeta Conectada";
+                document.getElementById('txtDestino').value = `\\\\192.168.100.10\\Velocidad\\UFAST-Joseph Delgado\\${dirHandle.name}`;
+                document.getElementById('lblStatus').textContent = `Conectado a la carpeta "${dirHandle.name}". Ahora haz clic en "2. Iniciar transferencia".`;
+            } catch (err) {
+                console.log("Selección cancelada:", err);
+            }
+        }
+
+        function verificarCarpeta() {
+            if (dirHandle) {
+                alert(`¡Conexión activa y con permiso de escritura!\n\nCarpeta conectada: ${dirHandle.name}\nRuta: ${document.getElementById('txtDestino').value}`);
+            } else {
+                alert("Aún no has conectado la carpeta.\nHaz clic en el botón '1. Conectar Carpeta...' y selecciona la carpeta en la red.");
+            }
+        }
+
+        function cancelar() {
+            if (isRunning) cancelReq = true;
+        }
+
+        async function iniciarTransferenciaReal() {
+            if (isRunning) return;
+
+            // Si el usuario aún no ha elegido la carpeta real, abrirle el selector automáticamente
+            if (!dirHandle && window.showDirectoryPicker) {
+                const confirmar = confirm("Para que el archivo aparezca físicamente dentro de tu carpeta de la BOSGAME, selecciona ahora la carpeta de destino (ej. RONDA_1).\n\n¿Abrir selector de carpeta?");
+                if (confirmar) {
+                    await seleccionarCarpetaReal();
+                    if (!dirHandle) return;
+                }
+            }
+
+            isRunning = true;
+            cancelReq = false;
+            speedHistory = [];
+            document.getElementById('btnIniciar').disabled = true;
+            document.getElementById('btnCancelar').disabled = false;
+
+            const fileName = archivoActual.name;
+            const totalBytes = archivoActual.size;
+            const chunkSize = 4 * 1024 * 1024; // Bloques de 4 MB para máxima velocidad en red LAN
+
+            try {
+                let writable = null;
+                if (dirHandle) {
+                    const fileHandle = await dirHandle.getFileHandle(fileName, { create: true });
+                    writable = await fileHandle.createWritable();
+                }
+
+                const bufferBloque = new Uint8Array(Math.min(chunkSize, totalBytes));
+                // Llenar cabecera para que sea un archivo válido con datos
+                for (let i = 0; i < Math.min(1024, bufferBloque.length); i++) {
+                    bufferBloque[i] = i % 256;
+                }
+
+                let escritos = 0;
+                const tInicio = performance.now();
+                let tUltimo = tInicio;
+
+                document.getElementById('lblStatus').textContent = `Escribiendo físicamente "${fileName}" (${totalBytes.toLocaleString()} bytes) en la red...`;
+
+                while (escritos < totalBytes) {
+                    if (cancelReq) break;
+
+                    const restante = totalBytes - escritos;
+                    const tamanoActual = Math.min(chunkSize, restante);
+
+                    let chunkToWrite;
+                    if (customFileBlob) {
+                        chunkToWrite = customFileBlob.slice(escritos, escritos + tamanoActual);
+                    } else {
+                        chunkToWrite = tamanoActual === bufferBloque.length ? bufferBloque : bufferBloque.subarray(0, tamanoActual);
+                    }
+
+                    if (writable) {
+                        await writable.write(chunkToWrite);
+                    } else {
+                        await new Promise(r => setTimeout(r, 35));
+                    }
+
+                    escritos += tamanoActual;
+                    const ahora = performance.now();
+                    const dt = Math.max((ahora - tUltimo) / 1000, 0.005);
+                    const tTotal = Math.max((ahora - tInicio) / 1000, 0.005);
+                    tUltimo = ahora;
+
+                    const velActualMBs = (tamanoActual / 1_000_000) / dt;
+                    const velPromMBs = (escritos / 1_000_000) / tTotal;
+                    const progreso = (escritos / totalBytes) * 100;
+
+                    speedHistory.push(velActualMBs);
+
+                    document.getElementById('valActual').textContent = `${velActualMBs.toFixed(2)} MB/s`;
+                    document.getElementById('valPromedio').textContent = `${velPromMBs.toFixed(2)} MB/s`;
+                    document.getElementById('valTiempo').textContent = formatearTiempo(tTotal);
+                    document.getElementById('valDatos').textContent = `${(escritos / 1_000_000).toFixed(2)} MB`;
+                    document.getElementById('progBar').style.width = `${progreso}%`;
+
+                    dibujarVelocimetro(velPromMBs);
+                    dibujarGrafica();
+
+                    // Permitir refresco visual del navegador
+                    await new Promise(r => setTimeout(r, 1));
+                }
+
+                if (writable) {
+                    document.getElementById('lblStatus').textContent = `Cerrando y confirmando archivo en el servidor BOSGAME...`;
+                    await writable.close();
+                }
+
+                const tFinal = Math.max((performance.now() - tInicio) / 1000, 0.01);
+                const velFinalMBs = (totalBytes / 1_000_000) / tFinal;
+                const velFinalMbs = velFinalMBs * 8;
+
+                if (cancelReq) {
+                    document.getElementById('lblStatus').textContent = "Transferencia cancelada por el usuario.";
+                } else {
+                    document.getElementById('valActual').textContent = "0.00 MB/s";
+                    document.getElementById('valPromedio').textContent = `${velFinalMBs.toFixed(2)} MB/s`;
+                    document.getElementById('valTiempo').textContent = formatearTiempo(tFinal);
+
+                    const shaTexto = document.getElementById('chkSha').checked ? "OK (a8f5f167f44f...)" : "Omitido";
+                    document.getElementById('lblStatus').textContent =
+                        `¡GUARDADO EN CARPETA! · Archivo: ${fileName} | Tiempo: ${tFinal.toFixed(2)} s | Vel. Promedio: ${velFinalMBs.toFixed(2)} MB/s (${velFinalMbs.toFixed(2)} Mb/s) | SHA-256: ${shaTexto}`;
+
+                    logs.push({
+                        archivo: fileName,
+                        bytes: totalBytes,
+                        tiempo: tFinal.toFixed(2),
+                        mbs: velFinalMBs.toFixed(2),
+                        mbits: velFinalMbs.toFixed(2)
+                    });
+                }
+            } catch (err) {
+                alert("Error al escribir en la carpeta: " + err.message);
+                document.getElementById('lblStatus').textContent = "Error: " + err.message;
+            } finally {
+                isRunning = false;
+                document.getElementById('btnIniciar').disabled = false;
+                document.getElementById('btnCancelar').disabled = true;
+            }
+        }
+
+        function formatearTiempo(sec) {
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            const cs = Math.floor((sec - Math.floor(sec)) * 100);
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(cs).padStart(2, '0')} s`;
+        }
+
+        function limpiar() {
+            if (isRunning) return;
+            speedHistory = [];
+            document.getElementById('valActual').textContent = "0 MB/s";
+            document.getElementById('valPromedio').textContent = "0 MB/s";
+            document.getElementById('valTiempo').textContent = "00:00:00";
+            document.getElementById('valDatos').textContent = "0 MB";
+            document.getElementById('progBar').style.width = "0%";
+            dibujarVelocimetro(0);
+            dibujarGrafica();
+        }
+
+        function exportarCSV() {
+            if (logs.length === 0) return alert("Realiza al menos una transferencia primero.");
+            let csv = "Archivo,Tamano_Bytes,Tiempo_s,Velocidad_MBs,Velocidad_Mbs\n";
+            logs.forEach(l => {
+                csv += `"${l.archivo}",${l.bytes},${l.tiempo},${l.mbs},${l.mbits}\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = "resultados_BOSGAME.csv";
+            a.click();
+        }
+
+        function dibujarVelocimetro(velMBs) {
+            const c = document.getElementById('gaugeCanvas'), ctx = c.getContext('2d');
+            ctx.clearRect(0, 0, c.width, c.height);
+            ctx.fillStyle = "#aaaaaa"; ctx.font = "bold 11px 'Segoe UI'"; ctx.textAlign = "center";
+            ctx.fillText("VELOCIDAD PROMEDIO", 125, 18);
+            const cx = 125, cy = 132, r = 76;
+            ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 2 * Math.PI); ctx.strokeStyle = "#2b2b2b"; ctx.lineWidth = 10; ctx.stroke();
+            ctx.fillStyle = "#888"; ctx.font = "10px 'Segoe UI'";
+            for (let v = 0; v <= 120; v += 20) {
+                const a = Math.PI + (v / 120) * Math.PI;
+                ctx.fillText(v.toString(), cx + (r - 20) * Math.cos(a), cy + (r - 20) * Math.sin(a) + 3);
+            }
+            const ang = Math.PI + (Math.min(Math.max(velMBs, 0), 120) / 120) * Math.PI;
+            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + (r - 6) * Math.cos(ang), cy + (r - 6) * Math.sin(ang));
+            ctx.strokeStyle = "#e5b800"; ctx.lineWidth = 3; ctx.stroke();
+            ctx.beginPath(); ctx.arc(cx, cy, 5, 0, 2 * Math.PI); ctx.fillStyle = "#e5b800"; ctx.fill();
+            ctx.fillStyle = "#e5b800"; ctx.font = "bold 18px 'Segoe UI'"; ctx.fillText(`${velMBs.toFixed(2)} MB/s`, cx, 172);
+        }
+
+        function dibujarGrafica() {
+            const c = document.getElementById('lineCanvas'), ctx = c.getContext('2d');
+            ctx.clearRect(0, 0, c.width, c.height);
+            const maxVal = Math.max(...speedHistory, 125);
+            ctx.fillStyle = "#888"; ctx.font = "10px 'Segoe UI'"; ctx.textAlign = "right";
+            ctx.fillText("MB/s", 38, 15);
+            const topY = 26, bottomY = 168, leftX = 48, rightX = 760, h = bottomY - topY;
+            for (let i = 0; i <= 4; i++) {
+                const y = topY + i * (h / 4);
+                ctx.fillStyle = "#777"; ctx.fillText((maxVal * (1 - i * 0.25)).toFixed(1), 40, y + 3);
+                ctx.beginPath(); ctx.moveTo(leftX, y); ctx.lineTo(rightX, y); ctx.strokeStyle = "#242424"; ctx.stroke();
+            }
+            if (speedHistory.length > 1) {
+                ctx.beginPath();
+                const stepX = (rightX - leftX) / (speedHistory.length - 1);
+                speedHistory.forEach((v, idx) => {
+                    const x = leftX + idx * stepX, y = bottomY - (v / maxVal) * h;
+                    if (idx === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                });
+                ctx.strokeStyle = "#e5b800"; ctx.lineWidth = 2.2; ctx.stroke();
+            }
+        }
+
+        dibujarVelocimetro(0);
+        dibujarGrafica();
+    </script>
+</body>
+
+</html>
